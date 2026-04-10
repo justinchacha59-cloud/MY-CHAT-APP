@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>JCP CHAT | Justin Chachap</title>
+    <style>
+        :root {
+            --primary: #4285f4; --secondary: #9b51e0;
+            --bg: #0b0d0e; --glass: rgba(255, 255, 255, 0.05);
+            --glow: #4285f4; --error: #ff4d4d;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        html, body {
+            height: 100dvh; width: 100vw; margin: 0; padding: 0;
+            overflow: hidden; background: var(--bg);
+            color: white; font-family: 'Segoe UI', Roboto, sans-serif;
+            display: flex; flex-direction: column;
+        }
+
+        header {
+            flex-shrink: 0; padding: 12px 15px;
+            background: rgba(0,0,0,0.85); backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex; justify-content: space-between; align-items: center;
+            z-index: 10;
+        }
+
+        .gemini-logo {
+            font-size: 18px; font-weight: 800; letter-spacing: 1px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary), var(--primary));
+            background-size: 200% auto; -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent; animation: shine 3s linear infinite;
+        }
+
+        .feedback-bar { display: flex; gap: 6px; }
+        .fb-btn {
+            font-size: 10px; padding: 6px 10px; border-radius: 8px; 
+            border: 1px solid var(--glow); color: white; text-decoration: none;
+            transition: 0.3s; background: rgba(255,255,255,0.03);
+            font-weight: bold; text-transform: uppercase;
+        }
+        .fb-btn:hover { background: var(--glow); box-shadow: 0 0 15px var(--glow); }
+
+        #chat-box {
+            flex: 1; overflow-y: auto; padding: 20px 15px;
+            display: flex; flex-direction: column; gap: 15px;
+            scrollbar-width: none; scroll-behavior: smooth;
+        }
+        #chat-box::-webkit-scrollbar { display: none; }
+
+        .msg-container { display: flex; align-items: flex-end; gap: 8px; max-width: 85%; }
+        .user-container { align-self: flex-end; flex-direction: row-reverse; }
+        .bot-container { align-self: flex-start; }
+
+        .message {
+            padding: 12px 16px; border-radius: 20px; font-size: 15px; line-height: 1.5;
+            animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 1px solid rgba(255,255,255,0.08); word-wrap: break-word;
+            white-space: pre-wrap; /* Preserves AI formatting */
+        }
+        .user-msg { background: #2b2d31; border-bottom-right-radius: 4px; }
+        .bot-msg { background: var(--glass); border-bottom-left-radius: 4px; border-left: 3px solid var(--glow); }
+
+        .input-area {
+            flex-shrink: 0; padding: 15px; display: flex; gap: 10px;
+            background: #16181c; border-top: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: max(15px, env(safe-area-inset-bottom));
+        }
+
+        input {
+            flex: 1; padding: 14px 20px; border-radius: 30px; 
+            border: 1px solid rgba(255,255,255,0.1);
+            background: #1e1f20; color: white; outline: none; font-size: 16px;
+        }
+        input:focus { border-color: var(--glow); }
+        input:disabled { opacity: 0.6; }
+        
+        #sendBtn {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border: none; width: 48px; height: 48px; border-radius: 50%;
+            color: white; cursor: pointer; transition: 0.3s; flex-shrink: 0;
+            font-size: 20px; display: flex; align-items: center; justify-content: center;
+        }
+        #sendBtn:disabled { filter: grayscale(1); opacity: 0.5; cursor: not-allowed; }
+
+        @keyframes shine { to { background-position: 200% center; } }
+        @keyframes pop { from { opacity:0; transform:scale(0.9) translateY(10px); } to { opacity:1; transform:scale(1) translateY(0); } }
+    </style>
+</head>
+<body>
+    <header>
+        <div>
+            <div class="gemini-logo">JCP CHAT</div>
+            <div style="font-size: 9px; opacity: 0.7; font-weight: bold; letter-spacing: 0.5px;">Made by Jûstîn Çhãçhãp</div>
+        </div>
+        <div class="feedback-bar">
+            <a href="#" class="fb-btn">FB</a>
+            <a href="#" class="fb-btn">IG</a>
+        </div>
+    </header>
+
+    <div id="chat-box" role="log" aria-live="polite">
+        <div class="msg-container bot-container">
+            <div class="message bot-msg">Hello this is JCP chat. How can I help you today?</div>
+        </div>
+    </div>
+
+    <form class="input-area" id="chatForm">
+        <input type="text" id="msgInput" placeholder="Type a message..." autocomplete="off" required>
+        <button type="submit" id="sendBtn">✅</button>
+    </form>
+
+    <script>
+        const box = document.getElementById('chat-box');
+        const input = document.getElementById('msgInput');
+        const btn = document.getElementById('sendBtn');
+        const form = document.getElementById('chatForm');
+
+        // Logic to add messages to the screen
+        function addMessage(text, type) {
+            const container = document.createElement('div');
+            container.className = `msg-container ${type}-container`;
+            
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${type}-msg`;
+            msgDiv.textContent = text;
+            
+            container.appendChild(msgDiv);
+            box.appendChild(container);
+            
+            // Scroll to the newest message
+            box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
+        }
+
+        // Form Submit Logic
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const text = input.value.trim();
+            if (!text || btn.disabled) return;
+
+            // UI Feedback
+            addMessage(text, 'user');
+            input.value = '';
+            input.disabled = true;
+            btn.disabled = true;
+            btn.innerHTML = `<span style="font-size:12px">...</span>`;
+
+            try {
+                // Fetch from your Flask backend
+                const response = await fetch('/ask', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: text })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.response) {
+                    addMessage(data.response, 'bot');
+                } else {
+                    addMessage(`[ALERT]: ${data.error || "System Busy. Try again."}`, 'bot');
+                }
+            } catch (err) {
+                addMessage("[ALERT]: Network Error. Is the server awake?", 'bot');
+            } finally {
+                // Re-enable UI
+                input.disabled = false;
+                btn.disabled = false;
+                btn.innerHTML = '✅';
+                input.focus();
+            }
+        });
+
+        // Background Color Cycle Logic
+        const colors = ['#4285f4', '#9b51e0', '#34a853', '#fbbc05'];
+        let colorIdx = 0;
+        setInterval(() => {
+            colorIdx = (colorIdx + 1) % colors.length;
+            document.documentElement.style.setProperty('--glow', colors[colorIdx]);
+        }, 5000);
+    </script>
+</body>
+</html>
+
