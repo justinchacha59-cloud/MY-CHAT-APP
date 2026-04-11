@@ -42,7 +42,7 @@ def ask():
 
     except Exception as e:
         print(f"Error: {e}")
-        return jsonify({"error": "The server is waking up or busy. Try again in 10 seconds."}), 500
+        return jsonify({"error": "🔌❌  !Please try again later. 💭."}), 500
 
 if __name__ == '__main__':
     # Use environment port for Render compatibility

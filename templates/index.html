@@ -32,7 +32,7 @@
             font-size: 18px; font-weight: 800; letter-spacing: 1px;
             background: linear-gradient(90deg, var(--primary), var(--secondary), var(--primary));
             background-size: 200% auto; -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent; animation: shine 3s linear infinite;
+            -webkit-text-fill-color: transparent; animation: shine 2s linear infinite;
         }
 
         .feedback-bar { display: flex; gap: 6px; }
@@ -97,8 +97,8 @@
             <div style="font-size: 9px; opacity: 0.7; font-weight: bold; letter-spacing: 0.5px;">Made by Jûstîn Çhãçhãp</div>
         </div>
         <div class="feedback-bar">
-            <a href="#" class="fb-btn">FB</a>
-            <a href="#" class="fb-btn">IG</a>
+            <a href="#" class="fb-btn">Facebook</a>
+            <a href="#" class="fb-btn">Instagram</a>
         </div>
     </header>
 
@@ -161,10 +161,10 @@
                 if (response.ok && data.response) {
                     addMessage(data.response, 'bot');
                 } else {
-                    addMessage(`[ALERT]: ${data.error || "System Busy. Try again."}`, 'bot');
+                    addMessage(`[ALERT]: ${data.error || "System Busy. Try again later."}`, 'bot');
                 }
             } catch (err) {
-                addMessage("[ALERT]: Network Error. Is the server awake?", 'bot');
+                addMessage("[ALERT]: Network Error (>_<). please try again later !", 'bot');
             } finally {
                 // Re-enable UI
                 input.disabled = false;
