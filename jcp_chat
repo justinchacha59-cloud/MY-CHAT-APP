@@ -1,5 +1,3 @@
-import eventlet
-eventlet.mokey_patch()
 import os
 from flask import Flask, request, jsonify, render_template
 from groq import Groq

@@ -3,4 +3,3 @@ flask
 ​groq
 ​python-dotenv
 ​gunicorn
-eventlet
