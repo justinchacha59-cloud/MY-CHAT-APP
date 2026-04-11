@@ -1,5 +1,6 @@
 flask
-​flask-cors
-​groq
-​python-dotenv
-​gunicorn
+flask-cors
+groq
+python-dotenv
+gunicorn
+
