@@ -79,7 +79,7 @@
         input:disabled { opacity: 0.6; }
         
         #sendBtn {
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            background: linear-gradient(135deg, var(--glow), var(--glow));
             border: none; width: 48px; height: 48px; border-radius: 50%;
             color: white; cursor: pointer; transition: 0.3s; flex-shrink: 0;
             font-size: 20px; display: flex; align-items: center; justify-content: center;
@@ -110,7 +110,7 @@
 
     <form class="input-area" id="chatForm">
         <input type="text" id="msgInput" placeholder="Type a message..." autocomplete="off" required>
-        <button type="submit" id="sendBtn">✅</button>
+        <button type="submit" id="sendBtn">✔</button>
     </form>
 
     <script>
@@ -169,7 +169,7 @@
                 // Re-enable UI
                 input.disabled = false;
                 btn.disabled = false;
-                btn.innerHTML = '✅';
+                btn.innerHTML = '✔';
                 input.focus();
             }
         });
