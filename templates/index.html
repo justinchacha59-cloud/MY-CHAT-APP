@@ -64,6 +64,64 @@
         .user-msg { background: #2b2d31; border-bottom-right-radius: 4px; }
         .bot-msg { background: var(--glass); border-bottom-left-radius: 4px; border-left: 3px solid var(--glow); }
 
+        .bot-msg-wrapper {
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+        }
+
+        .message-actions {
+            display: flex;
+            gap: 6px;
+            opacity: 0;
+            transition: opacity 0.2s;
+            margin-bottom: 2px;
+        }
+
+        .msg-container:hover .message-actions {
+            opacity: 1;
+        }
+
+        .action-btn {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: 0.2s;
+            flex-shrink: 0;
+        }
+
+        .action-btn:hover {
+            background: var(--glow);
+            border-color: var(--glow);
+            box-shadow: 0 0 10px rgba(66, 133, 244, 0.3);
+        }
+
+        .copy-feedback {
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            background: var(--glow);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 13px;
+            animation: slideIn 0.3s ease-out;
+            z-index: 1000;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
         .input-area {
             flex-shrink: 0; padding: 15px; display: flex; gap: 10px;
             background: #16181c; border-top: 1px solid rgba(255,255,255,0.1);
@@ -120,37 +178,102 @@
         const btn = document.getElementById('sendBtn');
         const form = document.getElementById('chatForm');
 
+        // Store last user message and messages for retry
+        let lastUserMessage = '';
+        const messageStore = new Map();
+
         // Logic to add messages to the screen
-        function addMessage(text, type) {
+        function addMessage(text, type, isError = false) {
             const container = document.createElement('div');
             container.className = `msg-container ${type}-container`;
             
-            const msgDiv = document.createElement('div');
-            msgDiv.className = `message ${type}-msg`;
-            msgDiv.textContent = text;
+            if (type === 'bot' && !isError) {
+                // Create wrapper for message + actions
+                const wrapper = document.createElement('div');
+                wrapper.className = 'bot-msg-wrapper';
+                
+                const msgDiv = document.createElement('div');
+                msgDiv.className = `message ${type}-msg`;
+                msgDiv.textContent = text;
+                
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'message-actions';
+                
+                // Copy button
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'action-btn';
+                copyBtn.innerHTML = '📋';
+                copyBtn.title = 'Copy message';
+                copyBtn.onclick = (e) => {
+                    e.preventDefault();
+                    navigator.clipboard.writeText(text).then(() => {
+                        showCopyFeedback();
+                    });
+                };
+                
+                // Retry button
+                const retryBtn = document.createElement('button');
+                retryBtn.className = 'action-btn';
+                retryBtn.innerHTML = '🔄';
+                retryBtn.title = 'Retry message';
+                retryBtn.onclick = (e) => {
+                    e.preventDefault();
+                    if (lastUserMessage) {
+                        retryMessage(lastUserMessage);
+                    }
+                };
+                
+                actionsDiv.appendChild(copyBtn);
+                actionsDiv.appendChild(retryBtn);
+                
+                wrapper.appendChild(msgDiv);
+                wrapper.appendChild(actionsDiv);
+                container.appendChild(wrapper);
+            } else {
+                const msgDiv = document.createElement('div');
+                msgDiv.className = `message ${type}-msg`;
+                msgDiv.textContent = text;
+                container.appendChild(msgDiv);
+            }
             
-            container.appendChild(msgDiv);
             box.appendChild(container);
             
             // Scroll to the newest message
             box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
         }
 
-        // Form Submit Logic
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const text = input.value.trim();
-            if (!text || btn.disabled) return;
+        function showCopyFeedback() {
+            const feedback = document.createElement('div');
+            feedback.className = 'copy-feedback';
+            feedback.textContent = '✓ Copied to clipboard';
+            document.body.appendChild(feedback);
+            
+            setTimeout(() => {
+                feedback.remove();
+            }, 2000);
+        }
 
-            // UI Feedback
-            addMessage(text, 'user');
-            input.value = '';
+        function retryMessage(userMessage) {
+            if (btn.disabled) return;
+            
+            // Remove last bot message
+            const botMessages = document.querySelectorAll('.bot-container');
+            if (botMessages.length > 1) {
+                botMessages[botMessages.length - 1].remove();
+            }
+            
+            // Send message again
+            sendMessage(userMessage);
+        }
+
+        async function sendMessage(text) {
+            lastUserMessage = text;
+            
             input.disabled = true;
             btn.disabled = true;
             btn.innerHTML = `<span style="font-size:12px">...</span>`;
 
             try {
-                // Fetch from your Flask backend
                 const response = await fetch('/ask', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -162,16 +285,29 @@
                 if (response.ok && data.response) {
                     addMessage(data.response, 'bot');
                 } else {
-                    addMessage(`[ALERT]: ${data.error || "System Busy. Try again later."}`, 'bot');
+                    addMessage(`[ALERT]: ${data.error || "System Busy. Try again later."}`, 'bot', true);
                 }
             } catch (err) {
-                addMessage("[ALERT]: Network Error (>_<). please try again later !", 'bot');
+                console.error('Error:', err);
+                addMessage("[ALERT]: Unable to reach the server. Please check your connection and try again.", 'bot', true);
             } finally {
-                // Re-enable UI
                 input.disabled = false;
                 btn.disabled = false;
                 btn.innerHTML = '✔';
             }
+        }
+
+        // Form Submit Logic
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const text = input.value.trim();
+            if (!text || btn.disabled) return;
+
+            // UI Feedback
+            addMessage(text, 'user');
+            input.value = '';
+            
+            await sendMessage(text);
         });
 
         // Background Color Cycle Logic
@@ -184,4 +320,3 @@
     </script>
 </body>
 </html>
-
