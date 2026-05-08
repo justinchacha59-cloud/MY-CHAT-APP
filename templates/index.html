@@ -5,256 +5,556 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>JCP CHAT | Justin Chachap</title>
     <style>
+        /* 
+           ========================================
+           CORE SYSTEM VARIABLES
+           ========================================
+        */
         :root {
-            --primary: #4285f4; --secondary: #9b51e0;
-            --bg: #0b0d0e; --glass: rgba(255, 255, 255, 0.05);
-            --glow: #4285f4; --error: #ff4d4d;
+            --primary: #4285f4; 
+            --secondary: #9b51e0;
+            --bg: #0b0d0e; 
+            --glass: rgba(255, 255, 255, 0.05);
+            --glow: #4285f4; 
+            --error: #ff4d4d;
+            --panel-bg: #1a1c1e;
+            --border: rgba(255, 255, 255, 0.1);
         }
 
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        /* 
+           ========================================
+           RESET & GLOBAL STYLES
+           ========================================
+        */
+        * { 
+            box-sizing: border-box; 
+            -webkit-tap-highlight-color: transparent; 
+            margin: 0; 
+            padding: 0;
+        }
         
         html, body {
-            height: 100dvh; width: 100vw; margin: 0; padding: 0;
-            overflow: hidden; background: var(--bg);
-            color: white; font-family: 'Segoe UI', Roboto, sans-serif;
-            display: flex; flex-direction: column;
+            height: 100dvh; 
+            width: 100vw; 
+            overflow: hidden; 
+            background: var(--bg);
+            color: white; 
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            display: flex; 
+            flex-direction: column;
         }
 
+        /* 
+           ========================================
+           HEADER DESIGN (Pill Menu & Wallet)
+           ========================================
+        */
         header {
-            flex-shrink: 0; padding: 12px 15px;
-            background: rgba(0,0,0,0.85); backdrop-filter: blur(20px);
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            display: flex; justify-content: space-between; align-items: center;
-            z-index: 10;
+            flex-shrink: 0; 
+            padding: 12px 15px;
+            background: rgba(0,0,0,0.85); 
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--bg);
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            z-index: 100;
+        }
+
+        .brand-container {
+            display: flex;
+            flex-direction: column;
         }
 
         .gemini-logo {
-            font-size: 18px; font-weight: 800; letter-spacing: 1px;
+            font-size: 18px; 
+            font-weight: 800; 
+            letter-spacing: 1px;
             background: linear-gradient(90deg, var(--primary), var(--secondary), var(--primary));
-            background-size: 200% auto; -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent; animation: shine 2s linear infinite;
+            background-size: 200% auto; 
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent; 
+            animation: shine 2s linear infinite;
         }
 
-        .feedback-bar { display: flex; gap: 6px; }
-        .fb-btn {
-            font-size: 9px; padding: 5px 9px; border-radius: 7px; 
-            border: 1px solid var(--glow); color: white; text-decoration: none;
-            transition: 0.2s; background: rgba(255,255,255,0.03);
-            font-weight: bold; text-transform: uppercase;
+        .author-tag {
+            font-size: 9px; 
+            opacity: 0.7; 
+            font-weight: bold; 
+            letter-spacing: 0.5px;
+            margin-top: 2px;
         }
-        .fb-btn:hover { background: var(--glow); box-shadow: 0 0 15px var(--glow); }
 
-        #chat-box {
-            flex: 1; overflow-y: auto; padding: 20px 15px;
-            display: flex; flex-direction: column; gap: 15px;
-            scrollbar-width: none; scroll-behavior: smooth;
-        }
-        #chat-box::-webkit-scrollbar { display: none; }
-
-        .msg-container { display: flex; flex-direction: column; gap: 8px; max-width: 85%; }
-        .user-container { align-self: flex-end; }
-        .bot-container { align-self: flex-start; }
-
-        .message {
-            padding: 12px 16px; border-radius: 20px; font-size: 15px; line-height: 1.5;
-            animation: pop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            border: 1px solid rgba(255,255,255,0.08); word-wrap: break-word;
-            white-space: pre-wrap; /* Preserves AI formatting */
-        }
-        .user-msg { background: #2b2d31; border-bottom-right-radius: 4px; align-self: flex-end; }
-        .bot-msg { background: var(--glass); border-bottom-left-radius: 4px; border-left: 3px solid var(--glow); }
-
-        .message-actions {
+        .header-controls {
             display: flex;
-            gap: 8px;
-            opacity: 0;
-            transition: opacity 0.2s;
-            padding-left: 5px;
+            align-items: center;
+            gap: 11px;
         }
 
-        .msg-container:hover .message-actions {
-            opacity: 1;
+        /* Pill Hamburger Menu */
+        .menu-wrapper {
+            position: relative;
         }
 
-        .action-btn {
-            background: rgba(255,255,255,0.1);
-            border: 1px solid rgba(255,255,255,0.2);
-            color: white;
-            width: 36px;
-            height: 36px;
-            border-radius: 8px;
+        .pill-menu-btn {
+            background: var(--panel-bg);
+            border: 1.5px solid var(--glow);
+            border-radius: 50px;
+            padding: 10px 18px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 16px;
-            transition: 0.2s;
-            flex-shrink: 0;
+            transition: all 0.3s ease;
+        }
+
+        .pill-menu-btn:hover {
+            padding: 13px 22px;
+            background: #2b2d31;
+            border-color: var(--glow);
+            box-shadow: 0 0 10px rgba(66, 133, 244, 0.2);
+        }
+
+        .hamburger-icon {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .hamburger-icon span {
+            display: block;
+            width: 18px;
+            height: 2px;
+            background: white;
+            border-radius: 2px;
+        }
+
+        /* Dropdown Social Menu */
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 55px;
+            background: #1e1f20;
+            border: 1.5px solid var(--glow);
+            border-radius: 12px;
+            z-index: 1000;
+            min-width: 160px;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            animation: pop 0.2s ease-out;
+        }
+
+        .dropdown-item {
+            display: block;
+            padding: 14px 18px;
+            color: white;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            transition: background 0.2s;
+        }
+
+        .dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .dropdown-item:hover {
+            background: var(--glow);
+        }
+        /* Outlined Wallet Button */
+        .wallet-link {
+            position: relative;
+            display: flex;
+            background: var(--panel-bg);
+            border: 1.5px solid var(--glow);
+            align-items: center;
+            gap: 6px;
+            text-decoration: var(--glow);
+            color: #ffffff;
+            padding: 7px 9px;
+            border-radius: 40px;
+            transition: all 0.2s ease;
+        }
+
+        .wallet-link:hover {
+            border: 1.5px solid var(--glow);
+            background: var(--panel-bg);
+            border-radius: 40px;
+            padding: 9px 11px;
+            display: flex;
+        }
+
+        .wallet-icon {
+            width: 22px;
+            height: 22px;
+            stroke-width: 1.5;
+        }
+
+        .wallet-text {
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+        }
+
+        /* 
+           ========================================
+           CHAT AREA
+           ========================================
+        */
+        #chat-box {
+            flex: 1; 
+            overflow-y: auto; 
+            padding: 20px 15px;
+            display: flex; 
+            flex-direction: column; 
+            gap: 18px;
+            scrollbar-width: none; 
+            scroll-behavior: smooth;
+        }
+
+        #chat-box::-webkit-scrollbar { 
+            display: none; 
+        }
+
+        .msg-container { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 6px; 
+            max-width: 85%; 
+        }
+
+        .user-container { 
+            align-self: flex-end; 
+        }
+
+        .bot-container { 
+            align-self: flex-start; 
+        }
+
+        .message {
+            padding: 12px 18px; 
+            border-radius: 20px; 
+            font-size: 15px; 
+            line-height: 1.6;
+            animation: pop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 1px solid rgba(255,255,255,0.08); 
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+
+        .user-msg { 
+            background: #2b2d31; 
+            border-bottom-right-radius: 4px; 
+            color: #efefef;
+        }
+
+        .bot-msg { 
+            background: var(--glass); 
+            border-bottom-left-radius: 4px;
+            border-left: 3px solid var(--glow); 
+        }
+
+        /* Alert System Message Styles */
+        .alert-msg {
+            border-left: 3px solid var(--error) !important;
+            background: rgba(255, 77, 77, 0.08) !important;
+            color: #ffcccc;
+            font-weight: 500;
+        }
+
+        /* 
+           ========================================
+           INTERACTIVE ACTIONS (Copy/Retry)
+           ========================================
+        */
+        .message-actions { 
+            display: flex; 
+            gap: 8px; 
+            opacity: 0; 
+            transition: opacity 0.2s; 
+            padding-left: 5px; 
+            margin-top: 2px;
+        }
+
+        .msg-container:hover .message-actions,
+        .bot-container.is-alert .message-actions { 
+            opacity: 1; 
+        }
+
+        .action-btn {
+            background: rgba(255,255,255,0.08); 
+            border: 1px solid rgba(255,255,255,0.15);
+            color: white; 
+            width: 34px; 
+            height: 34px; 
+            border-radius: 8px;
+            cursor: pointer; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            font-size: 14px;
+            transition: all 0.2s ease;
         }
 
         .action-btn:hover {
             background: var(--glow);
             border-color: var(--glow);
-            box-shadow: 0 0 10px rgba(66, 133, 244, 0.3);
+            box-shadow: 0 4px 12px rgba(66, 133, 244, 0.3);
         }
 
-        .copy-feedback {
-            position: fixed;
-            bottom: 80px;
-            right: 20px;
-            background: var(--glow);
-            color: white;
-            padding: 10px 15px;
-            border-radius: 8px;
-            font-size: 13px;
-            animation: slideIn 0.3s ease-out;
-            z-index: 1000;
-        }
-
-        @keyframes slideIn {
-            from { transform: translateY(20px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-
+        /* 
+           ========================================
+           INPUT SECTION
+           ========================================
+        */
         .input-area {
-            flex-shrink: 0; padding: 15px; display: flex; gap: 10px;
-            background: #16181c; border-top: 1px solid rgba(255,255,255,0.1);
+            flex-shrink: 0; 
+            padding: 15px; 
+            display: flex; 
+            gap: 12px;
+            background: #16181c; 
+            border-top: 1px solid var(--border);
             padding-bottom: max(15px, env(safe-area-inset-bottom));
         }
 
         input {
-            flex: 1; padding: 14px 20px; border-radius: 30px; 
+            flex: 1; 
+            padding: 14px 22px; 
+            border-radius: 30px; 
             border: 1px solid rgba(255,255,255,0.1);
-            background: #1e1f20; color: white; outline: none; font-size: 16px;
+            background: #1e1f20; 
+            color: white; 
+            outline: none; 
+            font-size: 16px;
+            transition: border-color 0.3s;
         }
-        input:focus { border-color: var(--glow); }
-        input:disabled { opacity: 0.6; }
-        
-        #sendBtn {
-            background: linear-gradient(135deg, var(--glow), var(--glow));
-            border: none; width: 48px; height: 48px; border-radius: 50%;
-            color: white; cursor: pointer; transition: 0.3s; flex-shrink: 0;
-            font-size: 20px; display: flex; align-items: center; justify-content: center;
-        }
-        #sendBtn:disabled { filter: grayscale(1); opacity: 0.5; cursor: not-allowed; }
 
-        @keyframes shine { to { background-position: 200% center; } }
-        @keyframes pop { from { opacity:0; transform:scale(0.9) translateY(10px); } to { opacity:1; transform:scale(1) translateY(0); } }
+        input:focus {
+            border-color: var(--glow);
+        }
+
+        #sendBtn {
+            background: var(--glow); 
+            border: none; 
+            width: 50px; 
+            height: 50px; 
+            border-radius: 50%;
+            color: white; 
+            cursor: pointer; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            font-size: 18px;
+            transition: transform 0.2s, opacity 0.2s;
+        }
+
+        #sendBtn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        #sendBtn:active {
+            transform: scale(0.9);
+        }
+
+        /* 
+           ========================================
+           UTILITIES & ANIMATIONS
+           ========================================
+        */
+        .copy-feedback { 
+            position: fixed; 
+            bottom: 100px; 
+            right: 20px; 
+            background: var(--glow); 
+            color: white; 
+            padding: 10px 20px; 
+            border-radius: 10px; 
+            font-weight: 600;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s ease-out; 
+            z-index: 2000; 
+        }
+
+        @keyframes shine { 
+            to { background-position: 200% center; } 
+        }
+        
+        @keyframes pop { 
+            from { opacity:0; transform:scale(0.95) translateY(10px); } 
+            to { opacity:1; transform:scale(1) translateY(0); } 
+        }
+        
+        @keyframes slideIn { 
+            from { transform: translateY(30px); opacity: 0; } 
+            to { transform: translateY(0); opacity: 1; } 
+        }
     </style>
 </head>
 <body>
+
     <header>
-        <div>
+        <div class="brand-container">
             <div class="gemini-logo">JCP CHAT</div>
-            <div style="font-size: 9px; opacity: 0.7; font-weight: bold; letter-spacing: 0.5px;">Made by Jûstîn Çhãçhãp</div>
+            <div class="author-tag">Made by Jûstîn Çhãçhãp</div>
         </div>
-        <div class="feedback-bar">
-            <a href="https://www.facebook.com/justin.chachap" class="fb-btn">Facebook</a>
-            <a href="https://www.instagram.com/justin_chacha.p?igsh=OXNhOXF5d3psMXV2" class="fb-btn">Instagram</a>
-            <a href="https://www.tiktok.com/@justinchachap?_r=1&_t=ZS-95mmfRzaMg1" class="fb-btn">tiktok</a>
+        
+        <div class="header-controls">
+            <!-- Pill-shaped Menu -->
+            <div class="menu-wrapper">
+                <button id="menuBtn" class="pill-menu-btn" aria-label="Open Social Menu">
+                    <div class="hamburger-icon">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                </button>
+                <div id="dropdownMenu" class="dropdown-menu">
+                    <a href="https://www.facebook.com/justin.chachap" target="_blank" class="dropdown-item">Facebook</a>
+                    <a href="https://www.instagram.com/justin_chacha.p?igsh=OXNhOXF5d3psMXV2" target="_blank" class="dropdown-item">Instagram</a>
+                    <a href="https://www.tiktok.com/@justinchachap?_r=1&_d=elhfl0f5j7m6ji&sec_uid=MS4wLjABAAAAYRUI19pCZmjfr3ealcw3W_Fx4HTEpJRsED0gaC2MgRtcLjqI2ljPz0-Vhrx8Odg3&share_author_id=7187109836297978885&sharer_language=en&source=h5_m&u_code=e5m1dcf08636df&timestamp=1778130523&user_id=7187109836297978885&sec_user_id=MS4wLjABAAAAYRUI19pCZmjfr3ealcw3W_Fx4HTEpJRsED0gaC2MgRtcLjqI2ljPz0-Vhrx8Odg3&item_author_type=1&utm_source=copy&utm_campaign=client_share&utm_medium=android&share_iid=7617221368002840340&share_link_id=d6ddd9bb-b2e0-498e-b02a-3958c4d771f0&share_app_id=1233&ugbiz_name=ACCOUNT&ug_btm=b8727%2Cb7360&social_share_type=5&enable_checksum=1" target="_blank" class="dropdown-item">TikTok</a>
+                </div>
+            </div>
+
+            <!-- Outlined Wallet Link -->
+            <a href="https://link.minipay.xyz/invite?ref=5K4QpNaw" class="wallet-link">
+                <svg class="wallet-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"></path>
+                    <path d="M4 6v12c0 1.1.9 2 2 2h14v-4"></path>
+                    <path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z"></path>
+                </svg>
+                <span class="wallet-text">Wallet</span>
+            </a>
         </div>
     </header>
 
     <div id="chat-box" role="log" aria-live="polite">
+        <!-- Initial Message -->
         <div class="msg-container bot-container">
-            <div class="message bot-msg">Hello this is JCP chat. How can I help you today?</div>
+            <div class="message bot-msg">Hello! This is JCP CHAT. How can I help you today?</div>
         </div>
     </div>
 
     <form class="input-area" id="chatForm">
-        <input type="text" id="msgInput" placeholder="Type a message..." autocomplete="off" required>
-        <button type="submit" id="sendBtn">✔</button>
+        <input type="text" id="msgInput" placeholder="Type a message..." autocomplete="off" required aria-label="Message input">
+        <button type="submit" id="sendBtn" title="Send message">✔</button>
     </form>
 
+    <!-- 
+       ========================================
+       CORE LOGIC SCRIPT
+       ========================================
+    -->
     <script>
-        const box = document.getElementById('chat-box');
-        const input = document.getElementById('msgInput');
-        const btn = document.getElementById('sendBtn');
-        const form = document.getElementById('chatForm');
+        const chatBox = document.getElementById('chat-box');
+        const msgInput = document.getElementById('msgInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const chatForm = document.getElementById('chatForm');
+        const menuBtn = document.getElementById('menuBtn');
+        const dropdownMenu = document.getElementById('dropdownMenu');
 
-        // Store last user message and messages for retry
         let lastUserMessage = '';
-        const messageStore = new Map();
 
-        // Logic to add messages to the screen
+        /* 
+           Dropdown Menu Logic
+        */
+        menuBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isVisible = dropdownMenu.style.display === 'block';
+            dropdownMenu.style.display = isVisible ? 'none' : 'block';
+        });
+
+        document.addEventListener('click', () => {
+            dropdownMenu.style.display = 'none';
+        });
+
+        /* 
+           Core UI Messenger Logic
+        */
         function addMessage(text, type, isError = false) {
             const container = document.createElement('div');
-            container.className = `msg-container ${type}-container`;
+            container.className = `msg-container ${type}-container ${isError ? 'is-alert' : ''}`;
             
             const msgDiv = document.createElement('div');
-            msgDiv.className = `message ${type}-msg`;
+            msgDiv.className = `message ${type}-msg ${isError ? 'alert-msg' : ''}`;
             msgDiv.textContent = text;
             container.appendChild(msgDiv);
             
-            if (type === 'bot' && !isError) {
+            // Add Interactive Actions to Bot Responses & Alerts
+            if (type === 'bot') {
                 const actionsDiv = document.createElement('div');
                 actionsDiv.className = 'message-actions';
                 
-                // Copy button
+                // Copy Action
                 const copyBtn = document.createElement('button');
                 copyBtn.className = 'action-btn';
                 copyBtn.innerHTML = '📋';
-                copyBtn.title = 'Copy message';
+                copyBtn.title = 'Copy to clipboard';
                 copyBtn.onclick = (e) => {
                     e.preventDefault();
                     navigator.clipboard.writeText(text).then(() => {
                         showCopyFeedback();
                     });
                 };
-                
-                // Retry button
+
+                // Retry Action
                 const retryBtn = document.createElement('button');
                 retryBtn.className = 'action-btn';
                 retryBtn.innerHTML = '🔄';
-                retryBtn.title = 'Retry message';
+                retryBtn.title = 'Retry last request';
                 retryBtn.onclick = (e) => {
                     e.preventDefault();
                     if (lastUserMessage) {
-                        retryMessage(lastUserMessage);
+                        handleRetry(lastUserMessage);
                     }
                 };
-                
+
                 actionsDiv.appendChild(copyBtn);
                 actionsDiv.appendChild(retryBtn);
                 container.appendChild(actionsDiv);
             }
             
-            box.appendChild(container);
+            chatBox.appendChild(container);
             
-            // Scroll to the newest message
-            box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
+            // Auto-scroll to bottom
+            chatBox.scrollTo({ 
+                top: chatBox.scrollHeight, 
+                behavior: 'smooth' 
+            });
         }
 
         function showCopyFeedback() {
             const feedback = document.createElement('div');
             feedback.className = 'copy-feedback';
-            feedback.textContent = '✓ Copied to clipboard';
+            feedback.textContent = '✓ Copied';
             document.body.appendChild(feedback);
             
             setTimeout(() => {
-                feedback.remove();
+                feedback.style.opacity = '0';
+                setTimeout(() => feedback.remove(), 300);
             }, 2000);
         }
 
-        function retryMessage(userMessage) {
-            if (btn.disabled) return;
+        function handleRetry(msgText) {
+            if (sendBtn.disabled) return;
             
-            // Remove last bot message
+            // Remove the last bot response (usually the alert)
             const botMessages = document.querySelectorAll('.bot-container');
-            if (botMessages.length > 1) {
+            if (botMessages.length > 0) {
                 botMessages[botMessages.length - 1].remove();
             }
             
-            // Send message again
-            sendMessage(userMessage);
+            requestAIResponse(msgText);
         }
 
-        async function sendMessage(text) {
+        async function requestAIResponse(text) {
             lastUserMessage = text;
             
-            input.disabled = true;
-            btn.disabled = true;
-            btn.innerHTML = `<span style="font-size:12px">...</span>`;
+            msgInput.disabled = true;
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '...';
 
             try {
                 const response = await fetch('/ask', {
@@ -268,38 +568,48 @@
                 if (response.ok && data.response) {
                     addMessage(data.response, 'bot');
                 } else {
-                    addMessage(`[ALERT]: ${data.error || "System Busy. Try again later."}`, 'bot', true);
+                    const errorMsg = data.error || "Please try again.";
+                    addMessage(`[ALERT]: ${errorMsg}`, 'bot', true);
                 }
             } catch (err) {
-                console.error('Error:', err);
-                addMessage("[ALERT]: Unable to reach the server. Please check your connection and try again.", 'bot', true);
+                console.error('Request failed:', err);
+                addMessage("[ALERT]: Please check your internet🛰 connection and try again.", 'bot', true);
             } finally {
-                input.disabled = false;
-                btn.disabled = false;
-                btn.innerHTML = '✔';
+                msgInput.disabled = false;
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '✔';
+              /*  msgInput.focus();*/
             }
         }
 
-        // Form Submit Logic
-        form.addEventListener('submit', async (e) => {
+        /* 
+           Form Interaction
+        */
+        chatForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            const text = input.value.trim();
-            if (!text || btn.disabled) return;
-
-            // UI Feedback
-            addMessage(text, 'user');
-            input.value = '';
+            const text = msgInput.value.trim();
             
-            await sendMessage(text);
+            if (!text || sendBtn.disabled) return;
+
+            addMessage(text, 'user');
+            msgInput.value = '';
+            
+            requestAIResponse(text);
         });
 
-        // Background Color Cycle Logic
-        const colors = ['#4285f4', '#9b51e0', '#34a853', '#fbbc05'];
-        let colorIdx = 0;
+        /* 
+           Dynamic Theme Glow Logic
+        */
+        const themeColors = ['#4285f4', '#ea4335', '#fbbc05', '#34a853', '#4796e3', '#9177c7', '#ca6673', '#3098de',
+'#9b51e0', '#34a853', '#fbbc05'];
+        let colorIndex = 0;
+        
         setInterval(() => {
-            colorIdx = (colorIdx + 1) % colors.length;
-            document.documentElement.style.setProperty('--glow', colors[colorIdx]);
-        }, 5000);
+            colorIndex = (colorIndex + 1) % themeColors.length;
+            document.documentElement.style.setProperty('--glow', themeColors[colorIndex]);
+        }, 8000);
+
     </script>
 </body>
 </html>
+
