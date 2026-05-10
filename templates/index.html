@@ -11,7 +11,9 @@
            ========================================
         */
         :root {
-            --primary: #4285f4; 
+            --primary: #4285f4;
+            --pi: #34a853;
+            --si: #fbbc05;
             --secondary: #9b51e0;
             --bg: #0b0d0e; 
             --glass: rgba(255, 255, 255, 0.05);
@@ -70,11 +72,11 @@
             font-size: 18px; 
             font-weight: 800; 
             letter-spacing: 1px;
-            background: linear-gradient(90deg, var(--primary), var(--secondary), var(--primary));
+            background: linear-gradient(90deg, var(--primary), var(--secondary), var(--pi), var(--si), var(--pi));
             background-size: 200% auto; 
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent; 
-            animation: shine 2s linear infinite;
+            animation: shine 5s linear infinite;
         }
 
         .author-tag {
@@ -285,7 +287,7 @@
 
         .action-btn {
             background: rgba(255,255,255,0.08); 
-            border: 1px solid rgba(255,255,255,0.15);
+            border: 1px solid var(--glow);
             color: white; 
             width: 34px; 
             height: 34px; 
@@ -601,8 +603,7 @@
         /* 
            Dynamic Theme Glow Logic
         */
-        const themeColors = ['#4285f4', '#ea4335', '#fbbc05', '#34a853', '#4796e3', '#9177c7', '#ca6673', '#3098de',
-'#9b51e0', '#34a853', '#fbbc05'];
+        const themeColors = ['#4285f4', '#9b51e0', '#34a853', '#fbbc05'];
         let colorIndex = 0;
         
         setInterval(() => {
