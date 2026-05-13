@@ -1,0 +1,53 @@
+{
+  "name": "JCP CHAT",
+  "short_name": "JCP",
+  "description": "A chatting web app integrated with Llama 3 AI",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "scope": "./",
+  "orientation": "portrait-primary",
+  "background_color": "#0b0d0e",
+  "theme_color": "#4285f4",
+  "icons": [
+    {
+      "src": "static/image.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "static/image.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "static/image.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "static/image.jpg",
+      "sizes": "540x720",
+      "type": "image/jpeg"
+    }
+  ],
+  "categories": ["productivity", "communication"],
+  "shortcuts": [
+    {
+      "name": "New Chat",
+      "short_name": "Chat",
+      "description": "Start a new conversation with JCP CHAT AI",
+      "url": "./index.html?mode=new",
+      "icons": [
+        {
+          "src": "static/image.jpg",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}
