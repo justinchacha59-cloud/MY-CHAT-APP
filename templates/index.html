@@ -14,44 +14,105 @@
     
     <title>JCP CHAT | Justin Chachap</title>
     <style>
-        /* Core CSS omitted for brevity (kept same as existing file) */
-        :root{--primary:#4285f4;--pi:#34a853;--si:#fbbc05;--secondary:#9b51e0;--bg:#0b0d0e;--glass:rgba(255,255,255,0.05);--glow:#4285f4;--error:#ff4d4d;--panel-bg:#1a1c1e;--border:rgba(255,255,255,0.1)}
+        /* Core CSS */
+        :root{--primary:#4285f4;--pi:#34a853;--si:#fbbc05;--secondary:#9b51e0;--bg:#0b0d0e;--glass:rgba(255,255,255,0.05);--glow:#4285f4;--error:#ff4d4d;--panel-bg:#1a1c1e;--border:rgba(255,255,25,0.1)}
         *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
         html,body{height:100dvh;width:100vw;overflow:hidden;background:var(--bg);color:white;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;display:flex;flex-direction:column}
-        header{flex-shrink:0;padding:12px 15px;background:rgba(0,0,0,0.85);backdrop-filter:blur(20px);box-shadow:0 0 10px var(--glow);border-bottom:1px solid var(--bg);display:flex;justify-content:flex-start;align-items:center;z-index:100;padding-top:max(12px,env(safe-area-inset-top))}
-        .logo{width:38px;height:38px;border-radius:50%;object-fit:cover;flex-shrink:0;border:2px solid var(--glow);box-shadow:0 0 15px var(--glow);animation:glow-pulse 2s ease-in-out infinite}
-        .brand-container{display:flex;padding:0 50px 0 4px;flex-direction:column;align-items:flex-start}
-        .gemini-logo{font-size:18px;font-weight:bold;letter-spacing:0.5px;background:linear-gradient(90deg,var(--primary),var(--secondary),var(--pi),var(--si),var(--pi));background-size:200% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:shine 5s linear infinite}
-        .author-tag{font-size:9px;opacity:0.7;font-weight:bold}
-        .header-controls{display:flex;align-items:center;gap:8px;margin-left:auto}
-        .pill-menu-btn{background:var(--panel-bg);border:1.5px solid var(--glow);border-radius:50px;padding:9px 17px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .3s}
-        .dropdown-menu{display:none;position:absolute;right:0;top:55px;background:#1e1f20;border:1.5px solid var(--glow);border-radius:12px;z-index:1000;min-width:180px;overflow:hidden;box-shadow:0 10px 25px rgba(0,0,0,.5)}
-        .dropdown-item{display:block;padding:12px 16px;color:white;text-decoration:none;font-size:13px;font-weight:500;border-bottom:1px solid rgba(255,255,255,0.05)}
+        
+        /* Optimized Header */
+        header{flex-shrink:0;padding:10px 15px;background:rgba(0,0,0,0.85);backdrop-filter:blur(20px);box-shadow:0 0 10px var(--glow);border-bottom:1px solid var(--bg);display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:50px}
+        
+        /* Logo with glow */
+        .logo{width:40px;height:40px;border-radius:50%;object-fit:cover;flex-shrink:0;border:2px solid var(--glow);box-shadow:0 0 15px var(--glow);animation:glow-pulse 2s ease-in-out infinite;transition:all 3s cubic-bezier(0.4, 0, 0.2, 1)}
+        
+        /* Brand container optimized */
+        .brand-container{display:flex;padding:0 0 0 8px;flex-direction:column;align-items:flex-start;gap:0;flex-shrink:0}
+        .gemini-logo{font-size:14px;font-weight:bold;letter-spacing:0.5px;background:linear-gradient(90deg,var(--primary),var(--secondary),var(--pi),var(--si),var(--pi));background-size:200% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:shine 3s linear infinite}
+        .author-tag{font-size:8px;opacity:0.6;font-weight:bold;letter-spacing:0.2px}
+        
+        /* Header controls */
+        .header-controls{display:flex;align-items:center;gap:10px;margin-left:auto}
+        
+        /* Unified button styling for menu and wallet */
+        .pill-menu-btn, .wallet-link{background:var(--panel-bg);border:1.5px solid var(--glow);border-radius:25px;padding:8px 16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 3s cubic-bezier(0.4, 0, 0.2, 1);box-shadow:0 0 8px rgba(66,133,244,0.4);gap:6px;text-decoration:none;color:#fff}
+        .pill-menu-btn:hover, .wallet-link:hover{box-shadow:0 0 20px var(--glow),0 0 40px rgba(66,133,244,0.3)}
+        
+        /* Hamburger icon with equal parallel lines */
+        .hamburger-icon{display:flex;flex-direction:column;gap:3px}
+        .hamburger-icon span{display:block;width:18px;height:2px;background:#fff;border-radius:1px;transition:all 3s cubic-bezier(0.4, 0, 0.2, 1)}
+        
+        /* Wallet icon styling */
+        .wallet-icon{width:18px;height:18px}
+        .wallet-text{font-size:13px;font-weight:500}
+        
+        /* Dropdown menu */
+        .dropdown-menu{display:none;position:absolute;right:0;top:55px;background:#1e1f20;border:1.5px solid var(--glow);border-radius:12px;z-index:1000;min-width:180px;overflow:hidden;box-shadow:0 0 20px rgba(0,0,0,.5),0 0 15px var(--glow);animation:slideDown 0.3s ease-out}
+        @keyframes slideDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+        .dropdown-item{display:block;padding:12px 16px;color:white;text-decoration:none;font-size:13px;font-weight:500;border-bottom:1px solid rgba(255,255,255,0.05);transition:all 0.2s;background:none;border:none;cursor:pointer;text-align:left;width:100%}
+        .dropdown-item:hover{background:rgba(66,133,244,0.2);color:var(--glow)}
         .dropdown-item:last-child{border-bottom:none}
+        
+        /* Menu overlay (full-page blur) */
+        .menu-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);backdrop-filter:blur(50%);z-index:999;animation:fadeIn 0.3s ease-out}
+        .menu-overlay.active{display:block}
+        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+        
+        /* Chat box */
         #chat-box{flex:1;overflow-y:auto;padding:20px 15px;display:flex;flex-direction:column;gap:18px;scroll-behavior:smooth}
         .msg-container{display:flex;flex-direction:column;gap:6px;max-width:85%}
         .user-container{align-self:flex-end}
         .bot-container{align-self:flex-start}
-        .message{padding:12px 18px;border-radius:20px;font-size:15px;line-height:1.6;border:1px solid rgba(255,255,255,.08);white-space:pre-wrap}
+        
+        /* Messages */
+        .message{padding:12px 18px;border-radius:20px;font-size:15px;line-height:1.6;border:1px solid rgba(255,255,255,.08);white-space:pre-wrap;transition:all 3s cubic-bezier(0.4, 0, 0.2, 1)}
         .user-msg{background:#2b2d31;border-bottom-right-radius:4px;color:#efefef}
-        .bot-msg{background:var(--glass);border-bottom-left-radius:4px;border-left:3px solid var(--glow)}
+        .bot-msg{background:var(--glass);border-bottom-left-radius:4px;border-left:3px solid var(--glow);box-shadow:0 0 10px rgba(66,133,244,0.2)}
         .alert-msg{border-left:3px solid var(--error)!important;background:rgba(255,77,77,.08)!important;color:#ffcccc}
+        
+        /* Message actions */
         .message-actions{display:flex;gap:8px;opacity:0;transition:opacity .2s;padding-left:5px;margin-top:2px}
         .msg-container:hover .message-actions{opacity:1}
-        .action-btn{background:rgba(255,255,255,.08);border:1px solid var(--glow);color:white;width:34px;height:34px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+        .action-btn{background:rgba(255,255,255,.08);border:1px solid var(--glow);color:white;width:34px;height:34px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all 0.2s}
+        .action-btn:hover{background:rgba(66,133,244,0.3);box-shadow:0 0 10px var(--glow)}
+        
+        /* Input area */
         .input-area{flex-shrink:0;padding:15px;display:flex;gap:12px;background:#16181c;border-top:1px solid var(--border);padding-bottom:max(15px,env(safe-area-inset-bottom))}
-        input{flex:1;padding:14px 22px;border-radius:30px;border:1px solid rgba(255,255,255,.1);background:#1e1f20;color:white;outline:none;font-size:16px}
-        #sendBtn{background:var(--glow);border:none;width:50px;height:50px;border-radius:50%;color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px}
-        .copy-feedback{position:fixed;bottom:100px;right:20px;background:var(--glow);color:white;padding:10px 20px;border-radius:10px;font-weight:600;box-shadow:0 5px 15px rgba(0,0,0,.3);z-index:2000}
-        @keyframes shine{to{background-position:200% center}}@keyframes glow-pulse{0%,100%{box-shadow:0 0 30px var(--glow),0 0 60px rgba(66,133,244,.3)}50%{box-shadow:0 0 50px var(--glow),0 0 100px rgba(66,133,244,.5)}}
+        
+        /* Input field with glowing border */
+        input{flex:1;padding:14px 22px;border-radius:30px;border:1.5px solid var(--glow);background:#1e1f20;color:white;outline:none;font-size:16px;transition:all 3s cubic-bezier(0.4, 0, 0.2, 1);box-shadow:0 0 8px rgba(66,133,244,0.3);caret-color:var(--glow)}
+        input:focus{box-shadow:0 0 20px var(--glow),0 0 40px rgba(66,133,244,0.2);border-color:var(--glow)}
+        input::placeholder{color:rgba(255,255,255,0.5)}
+        
+        /* Send button with glow */
+        #sendBtn{background:var(--glow);border:none;width:50px;height:50px;border-radius:50%;color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;transition:all 3s cubic-bezier(0.4, 0, 0.2, 1);box-shadow:0 0 15px var(--glow);font-weight:bold}
+        #sendBtn:hover{box-shadow:0 0 30px var(--glow),0 0 50px rgba(66,133,244,0.3);transform:scale(1.05)}
+        #sendBtn:active{transform:scale(0.95)}
+        
+        /* Copy feedback */
+        .copy-feedback{position:fixed;bottom:100px;right:20px;background:var(--glow);color:white;padding:10px 20px;border-radius:10px;font-weight:600;box-shadow:0 5px 15px rgba(0,0,0,.3),0 0 15px var(--glow);z-index:2000;animation:slideUp 0.3s ease-out}
+        @keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+        
+        /* Animations */
+        @keyframes shine{to{background-position:200% center}}
+        @keyframes glow-pulse{0%,100%{box-shadow:0 0 30px var(--glow),0 0 60px rgba(66,133,244,.3)}50%{box-shadow:0 0 50px var(--glow),0 0 100px rgba(66,133,244,.5)}}
+        
+        /* Responsive */
+        @media (max-width:480px){
+            header{padding:8px 10px}
+            .brand-container{padding:0}
+            .gemini-logo{font-size:13px}
+            .author-tag{font-size:7px}
+            .pill-menu-btn, .wallet-link{padding:7px 12px;font-size:12px}
+            input{font-size:15px;padding:12px 18px}
+        }
     </style>
 </head>
 <body>
     <header>
-       <img src="/static/image.jpg" alt="logo" class="logo">
+        <img src="/static/image.jpg" alt="logo" class="logo">
         <div class="brand-container">
             <div class="gemini-logo">JCP CHAT</div>
-            <div class="author-tag">Made by Jûstîn Çhãçhãp</div>
+            <div class="author-tag">By Jûstîn Çhãçhãp</div>
         </div>
         
         <div class="header-controls">
@@ -59,23 +120,24 @@
             <div class="menu-wrapper">
                 <button id="menuBtn" class="pill-menu-btn" aria-label="Open Social Menu">
                     <div class="hamburger-icon">
-                        <span style="display:block;width:18px;height:2px;background:#fff;margin:3px 0;border-radius:2px"></span>
-                        <span style="display:block;width:18px;height:2px;background:#fff;margin:3px 0;border-radius:2px"></span>
-                        <span style="display:block;width:18px;height:2px;background:#fff;margin:3px 0;border-radius:2px"></span>
+                        <span></span>
+                        <span></span>
+                        <span></span>
                     </div>
                 </button>
+                <div id="menuOverlay" class="menu-overlay"></div>
                 <div id="dropdownMenu" class="dropdown-menu">
-                    <a href="https://airtelafrica.onelink.me/cGyr/ptnx2qxw?af_referrer_uid=RD2MKC3D" target="_blank" class="dropdown-item">Airtel app</a>
-                    <a href="https://www.facebook.com/justin.chachap" target="_blank" class="dropdown-item">Facebook</a>
-                    <a href="https://www.instagram.com/justin_chacha.p" target="_blank" class="dropdown-item">Instagram</a>
-                    <a href="https://www.tiktok.com/@justinchachap" target="_blank" class="dropdown-item">TikTok</a>
-                    <button id="clearHistoryBtn" class="dropdown-item" style="background:none;border:none;text-align:left;cursor:pointer">Clear History</button>
+                    <a href="https://airtelafrica.onelink.me/cGyr/ptnx2qxw?af_referrer_uid=RD2MKC3D" target="_blank" class="dropdown-item">🔗 Airtel App</a>
+                    <a href="https://www.facebook.com/justin.chachap" target="_blank" class="dropdown-item">📘 Facebook</a>
+                    <a href="https://www.instagram.com/justin_chacha.p" target="_blank" class="dropdown-item">📷 Instagram</a>
+                    <a href="https://www.tiktok.com/@justinchachap" target="_blank" class="dropdown-item">🎵 TikTok</a>
+                    <button id="clearHistoryBtn" class="dropdown-item">🗑️ Clear History</button>
                 </div>
             </div>
 
-            <!-- Outlined Wallet Link -->
-            <a href="https://link.minipay.xyz/invite?ref=5K4QpNaw" class="wallet-link" target="_blank" style="display:flex;align-items:center;gap:6px;text-decoration:none;color:#fff;padding:6px 8px;border-radius:40px;border:1.5px solid var(--glow)">
-                <svg class="wallet-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"></path><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"></path><path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z"></path></svg>
+            <!-- Wallet Link with matched styling -->
+            <a href="https://link.minipay.xyz/invite?ref=5K4QpNaw" class="wallet-link" target="_blank" aria-label="Open Wallet">
+                <svg class="wallet-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 8h22"/><path d="M16 14h4"/></svg>
                 <span class="wallet-text">Wallet</span>
             </a>
         </div>
@@ -84,7 +146,7 @@
     <div id="chat-box" role="log" aria-live="polite">
         <!-- Initial Message -->
         <div class="msg-container bot-container">
-            <div class="message bot-msg">Hello! This is JCP CHAT. How can I help you today?</div>
+            <div class="message bot-msg">👋 Hello! This is JCP CHAT. How can I assist you today?</div>
         </div>
     </div>
 
@@ -115,6 +177,7 @@
     const sendBtn = document.getElementById('sendBtn');
     const chatForm = document.getElementById('chatForm');
     const menuBtn = document.getElementById('menuBtn');
+    const menuOverlay = document.getElementById('menuOverlay');
     const dropdownMenu = document.getElementById('dropdownMenu');
     const clearHistoryBtn = document.getElementById('clearHistoryBtn');
 
@@ -264,7 +327,7 @@
         saveLocalHistory();
         renderHistory();
         await clearServerHistory();
-        alert('History cleared');
+        alert('✓ History cleared');
     }
 
     clearHistoryBtn.addEventListener('click', (e) => { e.preventDefault(); handleClearHistory(); });
@@ -307,12 +370,35 @@
     // Form handler
     chatForm.addEventListener('submit', (e)=>{ e.preventDefault(); const text = msgInput.value.trim(); if (!text) return; addMessage(text, 'user', false, true); msgInput.value=''; requestAIResponse(text); });
 
-    // Dropdown toggle
-    menuBtn.addEventListener('click', (e)=>{ e.stopPropagation(); dropdownMenu.style.display = dropdownMenu.style.display === 'block' ? 'none' : 'block'; });
-    document.addEventListener('click', ()=> dropdownMenu.style.display = 'none');
+    // Enhanced menu toggle with overlay blur
+    menuBtn.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        const isOpen = dropdownMenu.style.display === 'block';
+        dropdownMenu.style.display = isOpen ? 'none' : 'block';
+        menuOverlay.classList.toggle('active', !isOpen);
+    });
+
+    // Close menu when overlay is clicked
+    menuOverlay.addEventListener('click', ()=>{
+        dropdownMenu.style.display = 'none';
+        menuOverlay.classList.remove('active');
+    });
+
+    // Close menu when clicking outside
+    document.addEventListener('click', (e)=>{
+        if (!e.target.closest('.menu-wrapper')) {
+            dropdownMenu.style.display = 'none';
+            menuOverlay.classList.remove('active');
+        }
+    });
 
     // Theme glow cycle
-    const themeColors = ['#4285f4','#9b51e0','#34a853','#fbbc05']; let colorIndex=0; setInterval(()=>{ colorIndex=(colorIndex+1)%themeColors.length; document.documentElement.style.setProperty('--glow', themeColors[colorIndex]); },8000);
+    const themeColors = ['#4285f4','#9b51e0','#34a853','#fbbc05'];
+    let colorIndex=0;
+    setInterval(()=>{
+        colorIndex=(colorIndex+1)%themeColors.length;
+        document.documentElement.style.setProperty('--glow',themeColors[colorIndex]);
+    }, 5000);
 
     // Init on load: merge server & local history, then render
     window.addEventListener('load', async ()=>{
@@ -320,6 +406,7 @@
         const server = await loadServerHistory();
         mergeAndSaveHistories(local, server);
         renderHistory();
+        msgInput.focus();
     });
     </script>
 </body>
