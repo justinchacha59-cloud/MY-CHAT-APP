@@ -36,27 +36,54 @@ def ask():
         # Get data from frontend
         data = request.get_json()
         user_message = data.get('message', '').strip()
+        history = data.get('history', []) or []
 
         if not user_message:
             return jsonify({"error": "Input cannot be empty"}), 400
 
+        # Build messages list for the model: system -> history -> new user message
+        messages = []
+        messages.append({"role": "system", "content": SYSTEM_PROMPT})
+
+        # Keep only the last N history items to stay within token limits
+        MAX_HISTORY = 10
+        recent_history = history[-MAX_HISTORY:]
+
+        for item in recent_history:
+            role = item.get('role')
+            content = item.get('content', '')
+            if not content:
+                continue
+            # Map frontend roles to model roles if necessary
+            if role == 'bot':
+                model_role = 'assistant'
+            elif role == 'assistant':
+                model_role = 'assistant'
+            else:
+                model_role = 'user'
+
+            # We wrap user content similarly to before to avoid prompt injection into system role
+            if model_role == 'user':
+                messages.append({"role": "user", "content": f"User Input to Process: {content}"})
+            else:
+                messages.append({"role": model_role, "content": content})
+
+        # Append the current user message at the end
+        messages.append({"role": "user", "content": f"User Input to Process: {user_message}"})
+
         # 3. Call Groq API with Security Layer
-        # We wrap the user message to prevent it from leaking into system instructions
         completion = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": f"User Input to Process: {user_message}"}
-            ],
-            temperature=0.8, # Lower temperature for better security adherence
+            messages=messages,
+            temperature=0.8,
             max_tokens=1024,
             top_p=1,
             stream=False,
             stop=None,
         )
-        
+
         bot_response = completion.choices[0].message.content
-        
+
         return jsonify({
             "status": "success",
             "response": bot_response
@@ -74,4 +101,3 @@ if __name__ == '__main__':
     # Use environment port for Render/Heroku compatibility
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
-
