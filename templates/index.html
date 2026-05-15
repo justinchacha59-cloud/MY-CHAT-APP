@@ -313,6 +313,11 @@
             font-weight: 500;
             border-bottom: 1px solid rgba(255,255,255,0.05);
             transition: background 0.2s;
+            border: none;
+            background: none;
+            cursor: pointer;
+            text-align: left;
+            width: 100%;
         }
 
         .dropdown-item:last-child {
@@ -428,15 +433,15 @@
 
         /* 
            ========================================
-           INTERACTIVE ACTIONS (Copy/Retry)
+           INTERACTIVE ACTIONS (Copy/Retry with Icons)
            ========================================
         */
         .message-actions { 
             display: flex; 
-            gap: 8px; 
+            gap: 12px; 
             opacity: 0; 
             transition: opacity 0.2s; 
-            padding-left: 5px; 
+            padding: 8px 0 0 5px;
             margin-top: 2px;
         }
 
@@ -446,24 +451,50 @@
         }
 
         .action-btn {
-            background: rgba(255,255,255,0.08); 
-            border: 1px solid var(--glow);
-            color: white; 
-            width: 34px; 
-            height: 34px; 
-            border-radius: 8px;
+            background: transparent; 
+            border: none;
+            color: rgba(255, 255, 255, 0.6); 
+            width: 32px; 
+            height: 32px; 
+            border-radius: 6px;
             cursor: pointer; 
             display: flex; 
             align-items: center; 
             justify-content: center;
-            font-size: 14px;
+            font-size: 18px;
             transition: all 0.2s ease;
+            padding: 0;
+            position: relative;
         }
 
         .action-btn:hover {
-            background: var(--glow);
-            border-color: var(--glow);
-            box-shadow: 0 4px 12px rgba(66, 133, 244, 0.3);
+            color: var(--glow);
+            transform: scale(1.1);
+        }
+
+        .action-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* SVG Icon Styling */
+        .action-btn svg {
+            width: 24px;
+            height: 24px;
+            stroke: currentColor;
+            stroke-width: 1.5;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .action-btn.liked svg {
+            fill: var(--glow);
+            stroke: var(--glow);
+        }
+
+        .action-btn.disliked svg {
+            fill: var(--error);
+            stroke: var(--error);
         }
 
         /* 
@@ -608,6 +639,7 @@
                     <a href="https://www.facebook.com/justin.chachap" target="_blank" class="dropdown-item">Facebook</a>
                     <a href="https://www.instagram.com/justin_chacha.p?igsh=OXNhOXF5d3psMXV2" target="_blank" class="dropdown-item">Instagram</a>
                     <a href="https://www.tiktok.com/@justinchachap" target="_blank" class="dropdown-item">TikTok</a>
+                    <button id="clearHistoryBtn" class="dropdown-item">Clear History</button>
                 </div>
             </div>
 
@@ -703,14 +735,132 @@
             }
         }, 3000);
 
+        // Keys and limits for history
+        const HISTORY_KEY = 'jcp_chat_history_v1';
+        const CLIENT_ID_KEY = 'jcp_chat_client_id_v1';
+        const MAX_CLIENT_HISTORY = 500;
+        const MAX_HISTORY_SEND = 10;
+
         const chatBox = document.getElementById('chat-box');
         const msgInput = document.getElementById('msgInput');
         const sendBtn = document.getElementById('sendBtn');
         const chatForm = document.getElementById('chatForm');
         const menuBtn = document.getElementById('menuBtn');
         const dropdownMenu = document.getElementById('dropdownMenu');
+        const clearHistoryBtn = document.getElementById('clearHistoryBtn');
 
+        let chatHistory = [];
         let lastUserMessage = '';
+
+        // Helper: UUID for client_id
+        function generateUUID() {
+            return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c => (
+                c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+            );
+        }
+
+        function getClientId() {
+            let id = localStorage.getItem(CLIENT_ID_KEY);
+            if (!id) {
+                try { id = generateUUID(); } catch (e) { id = 'cid-' + Date.now(); }
+                localStorage.setItem(CLIENT_ID_KEY, id);
+            }
+            return id;
+        }
+
+        const CLIENT_ID = getClientId();
+
+        // History storage helpers
+        function loadLocalHistory() {
+            try {
+                const raw = localStorage.getItem(HISTORY_KEY);
+                if (!raw) return [];
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) return parsed;
+            } catch (e) { console.warn('loadLocalHistory failed', e); }
+            return [];
+        }
+
+        function saveLocalHistory() {
+            try {
+                if (chatHistory.length > MAX_CLIENT_HISTORY) chatHistory = chatHistory.slice(-MAX_CLIENT_HISTORY);
+                localStorage.setItem(HISTORY_KEY, JSON.stringify(chatHistory));
+            } catch (e) { console.warn('saveLocalHistory failed', e); }
+        }
+
+        function appendToHistory(role, content, ts = Date.now()) {
+            const entry = { role, content, ts };
+            chatHistory.push(entry);
+            if (chatHistory.length > MAX_CLIENT_HISTORY) chatHistory = chatHistory.slice(-MAX_CLIENT_HISTORY);
+            saveLocalHistory();
+        }
+
+        // Server history endpoints
+        async function loadServerHistory() {
+            try {
+                const res = await fetch('/history/load', { 
+                    method: 'POST', 
+                    headers: {'Content-Type':'application/json'}, 
+                    body: JSON.stringify({ client_id: CLIENT_ID }) 
+                });
+                if (!res.ok) return [];
+                const data = await res.json();
+                return data.history || [];
+            } catch (e) { console.warn('loadServerHistory failed', e); return []; }
+        }
+
+        async function clearServerHistory() {
+            try {
+                await fetch('/history/clear', { 
+                    method: 'POST', 
+                    headers: {'Content-Type':'application/json'}, 
+                    body: JSON.stringify({ client_id: CLIENT_ID }) 
+                });
+            } catch (e) { console.warn('clearServerHistory failed', e); }
+        }
+
+        // Merge server history + local history
+        function mergeAndSaveHistories(local, server) {
+            const combined = (local || []).concat(server || []);
+            combined.sort((a,b)=> (a.ts||0)-(b.ts||0));
+            const seen = new Set();
+            const out = [];
+            for (const e of combined) {
+                const key = `${e.role}::${e.content}::${e.ts}`;
+                if (!seen.has(key)) { seen.add(key); out.push(e); }
+            }
+            chatHistory = out.slice(-MAX_CLIENT_HISTORY);
+            saveLocalHistory();
+        }
+
+        function renderHistory() {
+            if (!chatHistory || !chatHistory.length) return;
+            chatHistory.forEach(item => {
+                const role = (item.role === 'bot' || item.role === 'assistant') ? 'bot' : 'user';
+                addMessage(item.content, role, false, false);
+            });
+            chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'auto' });
+        }
+
+        // Clear history
+        async function handleClearHistory() {
+            const ok = confirm('Clear all chat history locally and on server? This cannot be undone.');
+            if (!ok) return;
+            chatHistory = [];
+            saveLocalHistory();
+            chatBox.innerHTML = '';
+            const container = document.createElement('div');
+            container.className = 'msg-container bot-container';
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message bot-msg';
+            msgDiv.textContent = 'Hello! This is JCP CHAT. How can I help you today?';
+            container.appendChild(msgDiv);
+            chatBox.appendChild(container);
+            await clearServerHistory();
+            alert('✓ History cleared');
+        }
+
+        clearHistoryBtn.addEventListener('click', (e) => { e.preventDefault(); handleClearHistory(); });
 
         /* 
            Dropdown Menu Logic
@@ -725,10 +875,29 @@
             dropdownMenu.style.display = 'none';
         });
 
+        /* SVG Icons for Actions */
+        const copyIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+        </svg>`;
+
+        const likeIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
+        </svg>`;
+
+        const dislikeIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3"></path>
+        </svg>`;
+
+        const retryIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <path d="M20.49 15a9 9 0 1 1-2-8.83"></path>
+        </svg>`;
+
         /* 
            Core UI Messenger Logic
         */
-        function addMessage(text, type, isError = false) {
+        function addMessage(text, type, isError = false, save = true) {
             const container = document.createElement('div');
             container.className = `msg-container ${type}-container ${isError ? 'is-alert' : ''}`;
             
@@ -737,41 +906,95 @@
             msgDiv.textContent = text;
             container.appendChild(msgDiv);
             
-            // Add Interactive Actions to Bot Responses & Alerts
+            // Add Interactive Actions
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'message-actions';
+            
+            // Copy Action (for both user and bot)
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'action-btn';
+            copyBtn.innerHTML = copyIcon;
+            copyBtn.title = 'Copy to clipboard';
+            copyBtn.type = 'button';
+            copyBtn.onclick = (e) => {
+                e.preventDefault();
+                navigator.clipboard.writeText(text).then(() => {
+                    showCopyFeedback();
+                });
+            };
+            actionsDiv.appendChild(copyBtn);
+
+            // Like Action (for bot messages)
             if (type === 'bot') {
-                const actionsDiv = document.createElement('div');
-                actionsDiv.className = 'message-actions';
-                
-                // Copy Action
-                const copyBtn = document.createElement('button');
-                copyBtn.className = 'action-btn';
-                copyBtn.innerHTML = '📋';
-                copyBtn.title = 'Copy to clipboard';
-                copyBtn.onclick = (e) => {
+                const likeBtn = document.createElement('button');
+                likeBtn.className = 'action-btn';
+                likeBtn.innerHTML = likeIcon;
+                likeBtn.title = 'Like this response';
+                likeBtn.type = 'button';
+                likeBtn.onclick = (e) => {
                     e.preventDefault();
-                    navigator.clipboard.writeText(text).then(() => {
-                        showCopyFeedback();
-                    });
+                    likeBtn.classList.toggle('liked');
+                    dislikeBtn.classList.remove('disliked');
                 };
+                actionsDiv.appendChild(likeBtn);
+
+                // Dislike Action
+                const dislikeBtn = document.createElement('button');
+                dislikeBtn.className = 'action-btn';
+                dislikeBtn.innerHTML = dislikeIcon;
+                dislikeBtn.title = 'Dislike this response';
+                dislikeBtn.type = 'button';
+                dislikeBtn.onclick = (e) => {
+                    e.preventDefault();
+                    dislikeBtn.classList.toggle('disliked');
+                    likeBtn.classList.remove('liked');
+                };
+                actionsDiv.appendChild(dislikeBtn);
 
                 // Retry Action
                 const retryBtn = document.createElement('button');
                 retryBtn.className = 'action-btn';
-                retryBtn.innerHTML = '🔄';
+                retryBtn.innerHTML = retryIcon;
                 retryBtn.title = 'Retry last request';
+                retryBtn.type = 'button';
                 retryBtn.onclick = (e) => {
                     e.preventDefault();
                     if (lastUserMessage) {
                         handleRetry(lastUserMessage);
                     }
                 };
-
-                actionsDiv.appendChild(copyBtn);
                 actionsDiv.appendChild(retryBtn);
-                container.appendChild(actionsDiv);
+            } else if (type === 'user') {
+                // For user messages, add like/dislike
+                const likeBtn = document.createElement('button');
+                likeBtn.className = 'action-btn';
+                likeBtn.innerHTML = likeIcon;
+                likeBtn.title = 'Mark as helpful';
+                likeBtn.type = 'button';
+                likeBtn.onclick = (e) => {
+                    e.preventDefault();
+                    likeBtn.classList.toggle('liked');
+                    dislikeBtn.classList.remove('disliked');
+                };
+                actionsDiv.appendChild(likeBtn);
+
+                const dislikeBtn = document.createElement('button');
+                dislikeBtn.className = 'action-btn';
+                dislikeBtn.innerHTML = dislikeIcon;
+                dislikeBtn.title = 'Mark as unhelpful';
+                dislikeBtn.type = 'button';
+                dislikeBtn.onclick = (e) => {
+                    e.preventDefault();
+                    dislikeBtn.classList.toggle('disliked');
+                    likeBtn.classList.remove('liked');
+                };
+                actionsDiv.appendChild(dislikeBtn);
             }
-            
+
+            container.appendChild(actionsDiv);
             chatBox.appendChild(container);
+            
+            if (save) appendToHistory(type, text, Date.now());
             
             // Auto-scroll to bottom
             chatBox.scrollTo({ 
@@ -795,10 +1018,19 @@
         function handleRetry(msgText) {
             if (sendBtn.disabled) return;
             
-            // Remove the last bot response (usually the alert)
+            // Remove the last bot response
             const botMessages = document.querySelectorAll('.bot-container');
             if (botMessages.length > 0) {
                 botMessages[botMessages.length - 1].remove();
+            }
+            
+            // Remove last bot from history
+            for (let i = chatHistory.length - 1; i >= 0; i--) {
+                if (chatHistory[i].role === 'bot') { 
+                    chatHistory.splice(i,1); 
+                    saveLocalHistory(); 
+                    break; 
+                }
             }
             
             requestAIResponse(msgText);
@@ -812,23 +1044,24 @@
             sendBtn.innerHTML = '...';
 
             try {
+                const historyToSend = chatHistory.slice(-MAX_HISTORY_SEND);
                 const response = await fetch('/ask', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: text })
+                    body: JSON.stringify({ message: text, history: historyToSend, client_id: CLIENT_ID })
                 });
                 
                 const data = await response.json();
                 
                 if (response.ok && data.response) {
-                    addMessage(data.response, 'bot');
+                    addMessage(data.response, 'bot', false, true);
                 } else {
                     const errorMsg = data.error || "Please try again.";
-                    addMessage(`[ALERT]: ${errorMsg}`, 'bot', true);
+                    addMessage(`[ALERT]: ${errorMsg}`, 'bot', true, true);
                 }
             } catch (err) {
                 console.error('Request failed:', err);
-                addMessage("[ALERT]: Please check your internet🛰 connection and try again.", 'bot', true);
+                addMessage("[ALERT]: Please check your internet🛰 connection and try again.", 'bot', true, true);
             } finally {
                 msgInput.disabled = false;
                 sendBtn.disabled = false;
@@ -845,7 +1078,7 @@
             
             if (!text || sendBtn.disabled) return;
 
-            addMessage(text, 'user');
+            addMessage(text, 'user', false, true);
             msgInput.value = '';
             
             requestAIResponse(text);
@@ -866,6 +1099,14 @@
         if ('Notification' in window && Notification.permission === 'default') {
             Notification.requestPermission();
         }
+
+        // Init on load: merge server & local history, then render
+        window.addEventListener('load', async () => {
+            const local = loadLocalHistory();
+            const server = await loadServerHistory();
+            mergeAndSaveHistories(local, server);
+            renderHistory();
+        });
     </script>
 </body>
 </html>
