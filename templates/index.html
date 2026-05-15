@@ -433,15 +433,15 @@
 
         /* 
            ========================================
-           INTERACTIVE ACTIONS (Copy/Retry)
+           INTERACTIVE ACTIONS (Copy/Retry with Icons)
            ========================================
         */
         .message-actions { 
             display: flex; 
-            gap: 8px; 
+            gap: 12px; 
             opacity: 0; 
             transition: opacity 0.2s; 
-            padding-left: 5px; 
+            padding: 8px 0 0 5px;
             margin-top: 2px;
         }
 
@@ -451,24 +451,50 @@
         }
 
         .action-btn {
-            background: rgba(255,255,255,0.08); 
-            border: 1px solid var(--glow);
-            color: white; 
-            width: 34px; 
-            height: 34px; 
-            border-radius: 8px;
+            background: transparent; 
+            border: none;
+            color: rgba(255, 255, 255, 0.6); 
+            width: 32px; 
+            height: 32px; 
+            border-radius: 6px;
             cursor: pointer; 
             display: flex; 
             align-items: center; 
             justify-content: center;
-            font-size: 14px;
+            font-size: 18px;
             transition: all 0.2s ease;
+            padding: 0;
+            position: relative;
         }
 
         .action-btn:hover {
-            background: var(--glow);
-            border-color: var(--glow);
-            box-shadow: 0 4px 12px rgba(66, 133, 244, 0.3);
+            color: var(--glow);
+            transform: scale(1.1);
+        }
+
+        .action-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* SVG Icon Styling */
+        .action-btn svg {
+            width: 24px;
+            height: 24px;
+            stroke: currentColor;
+            stroke-width: 1.5;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .action-btn.liked svg {
+            fill: var(--glow);
+            stroke: var(--glow);
+        }
+
+        .action-btn.disliked svg {
+            fill: var(--error);
+            stroke: var(--error);
         }
 
         /* 
@@ -849,6 +875,25 @@
             dropdownMenu.style.display = 'none';
         });
 
+        /* SVG Icons for Actions */
+        const copyIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+        </svg>`;
+
+        const likeIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
+        </svg>`;
+
+        const dislikeIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3"></path>
+        </svg>`;
+
+        const retryIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <path d="M20.49 15a9 9 0 1 1-2-8.83"></path>
+        </svg>`;
+
         /* 
            Core UI Messenger Logic
         */
@@ -865,11 +910,12 @@
             const actionsDiv = document.createElement('div');
             actionsDiv.className = 'message-actions';
             
-            // Copy Action
+            // Copy Action (for both user and bot)
             const copyBtn = document.createElement('button');
             copyBtn.className = 'action-btn';
-            copyBtn.innerHTML = '📋';
+            copyBtn.innerHTML = copyIcon;
             copyBtn.title = 'Copy to clipboard';
+            copyBtn.type = 'button';
             copyBtn.onclick = (e) => {
                 e.preventDefault();
                 navigator.clipboard.writeText(text).then(() => {
@@ -878,12 +924,39 @@
             };
             actionsDiv.appendChild(copyBtn);
 
-            // Retry Action for bot messages
+            // Like Action (for bot messages)
             if (type === 'bot') {
+                const likeBtn = document.createElement('button');
+                likeBtn.className = 'action-btn';
+                likeBtn.innerHTML = likeIcon;
+                likeBtn.title = 'Like this response';
+                likeBtn.type = 'button';
+                likeBtn.onclick = (e) => {
+                    e.preventDefault();
+                    likeBtn.classList.toggle('liked');
+                    dislikeBtn.classList.remove('disliked');
+                };
+                actionsDiv.appendChild(likeBtn);
+
+                // Dislike Action
+                const dislikeBtn = document.createElement('button');
+                dislikeBtn.className = 'action-btn';
+                dislikeBtn.innerHTML = dislikeIcon;
+                dislikeBtn.title = 'Dislike this response';
+                dislikeBtn.type = 'button';
+                dislikeBtn.onclick = (e) => {
+                    e.preventDefault();
+                    dislikeBtn.classList.toggle('disliked');
+                    likeBtn.classList.remove('liked');
+                };
+                actionsDiv.appendChild(dislikeBtn);
+
+                // Retry Action
                 const retryBtn = document.createElement('button');
                 retryBtn.className = 'action-btn';
-                retryBtn.innerHTML = '🔄';
+                retryBtn.innerHTML = retryIcon;
                 retryBtn.title = 'Retry last request';
+                retryBtn.type = 'button';
                 retryBtn.onclick = (e) => {
                     e.preventDefault();
                     if (lastUserMessage) {
@@ -891,6 +964,31 @@
                     }
                 };
                 actionsDiv.appendChild(retryBtn);
+            } else if (type === 'user') {
+                // For user messages, add like/dislike
+                const likeBtn = document.createElement('button');
+                likeBtn.className = 'action-btn';
+                likeBtn.innerHTML = likeIcon;
+                likeBtn.title = 'Mark as helpful';
+                likeBtn.type = 'button';
+                likeBtn.onclick = (e) => {
+                    e.preventDefault();
+                    likeBtn.classList.toggle('liked');
+                    dislikeBtn.classList.remove('disliked');
+                };
+                actionsDiv.appendChild(likeBtn);
+
+                const dislikeBtn = document.createElement('button');
+                dislikeBtn.className = 'action-btn';
+                dislikeBtn.innerHTML = dislikeIcon;
+                dislikeBtn.title = 'Mark as unhelpful';
+                dislikeBtn.type = 'button';
+                dislikeBtn.onclick = (e) => {
+                    e.preventDefault();
+                    dislikeBtn.classList.toggle('disliked');
+                    likeBtn.classList.remove('liked');
+                };
+                actionsDiv.appendChild(dislikeBtn);
             }
 
             container.appendChild(actionsDiv);
