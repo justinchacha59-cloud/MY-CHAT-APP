@@ -656,10 +656,7 @@
     </header>
 
     <div id="chat-box" role="log" aria-live="polite">
-        <!-- Initial Message -->
-        <div class="msg-container bot-container">
-            <div class="message bot-msg">Hello! This is JCP CHAT. How can I help you today?</div>
-        </div>
+        <!-- Chat will be loaded here -->
     </div>
 
     <form class="input-area" id="chatForm">
@@ -751,6 +748,7 @@
 
         let chatHistory = [];
         let lastUserMessage = '';
+        let hasLoadedInitialHistory = false;
 
         // Helper: UUID for client_id
         function generateUUID() {
@@ -788,8 +786,10 @@
             } catch (e) { console.warn('saveLocalHistory failed', e); }
         }
 
-        function appendToHistory(role, content, ts = Date.now()) {
-            const entry = { role, content, ts };
+        function appendToHistory(role, content, ts = null) {
+            // Use provided timestamp or current time
+            const timestamp = ts || Date.now();
+            const entry = { role, content, ts: timestamp };
             chatHistory.push(entry);
             if (chatHistory.length > MAX_CLIENT_HISTORY) chatHistory = chatHistory.slice(-MAX_CLIENT_HISTORY);
             saveLocalHistory();
@@ -819,26 +819,53 @@
             } catch (e) { console.warn('clearServerHistory failed', e); }
         }
 
-        // Merge server history + local history
+        // Merge and deduplicate histories using content + role (NOT timestamp)
         function mergeAndSaveHistories(local, server) {
             const combined = (local || []).concat(server || []);
+            // Sort by timestamp
             combined.sort((a,b)=> (a.ts||0)-(b.ts||0));
+            
+            // Dedupe by role + content (not timestamp since timestamps can vary slightly)
             const seen = new Set();
             const out = [];
             for (const e of combined) {
-                const key = `${e.role}::${e.content}::${e.ts}`;
-                if (!seen.has(key)) { seen.add(key); out.push(e); }
+                const key = `${e.role}::${(e.content||'').trim()}`;
+                if (!seen.has(key)) { 
+                    seen.add(key); 
+                    out.push(e); 
+                }
             }
+            
             chatHistory = out.slice(-MAX_CLIENT_HISTORY);
             saveLocalHistory();
         }
 
         function renderHistory() {
-            if (!chatHistory || !chatHistory.length) return;
+            if (hasLoadedInitialHistory) return; // Only render once on load
+            hasLoadedInitialHistory = true;
+            
+            // Clear chat box first
+            chatBox.innerHTML = '';
+            
+            // Only render if there's history
+            if (!chatHistory || !chatHistory.length) {
+                // Show welcome message if no history
+                const container = document.createElement('div');
+                container.className = 'msg-container bot-container';
+                const msgDiv = document.createElement('div');
+                msgDiv.className = 'message bot-msg';
+                msgDiv.textContent = 'Hello! This is JCP CHAT. How can I help you today?';
+                container.appendChild(msgDiv);
+                chatBox.appendChild(container);
+                return;
+            }
+
+            // Render all historical messages
             chatHistory.forEach(item => {
                 const role = (item.role === 'bot' || item.role === 'assistant') ? 'bot' : 'user';
                 addMessage(item.content, role, false, false);
             });
+            
             chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'auto' });
         }
 
@@ -994,7 +1021,8 @@
             container.appendChild(actionsDiv);
             chatBox.appendChild(container);
             
-            if (save) appendToHistory(type, text, Date.now());
+            // Save only if it's a new message (save = true)
+            if (save) appendToHistory(type, text);
             
             // Auto-scroll to bottom
             chatBox.scrollTo({ 
@@ -1100,7 +1128,7 @@
             Notification.requestPermission();
         }
 
-        // Init on load: merge server & local history, then render
+        // Init on load: merge server & local history, then render ONCE
         window.addEventListener('load', async () => {
             const local = loadLocalHistory();
             const server = await loadServerHistory();
