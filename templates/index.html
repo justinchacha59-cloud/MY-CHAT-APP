@@ -1103,8 +1103,8 @@
         // Init on load: merge server & local history, then render
         window.addEventListener('load', async () => {
             const local = loadLocalHistory();
-            const server = await loadServerHistory();
-            mergeAndSaveHistories(local, server);
+        //  const server = await loadServerHistory();
+            mergeAndSaveHistories(local /*, server*/);
             renderHistory();
         });
     </script>
