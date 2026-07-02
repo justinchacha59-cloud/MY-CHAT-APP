@@ -140,7 +140,7 @@ def ask():
 
         # 3. Call Groq API with Security Layer
         completion = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="Qwen3.6 27B",
             messages=messages,
             temperature=0.8, # Lower temperature for better security adherence
             max_tokens=1024,
