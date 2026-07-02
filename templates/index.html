@@ -179,7 +179,7 @@
         */
         header {
             flex-shrink: 0; 
-            padding: 8px 15px;
+            padding: 12px 15px;
             background: rgba(0,0,0,0.85); 
             backdrop-filter: blur(20px);
             box-shadow: 0 0 10px var(--glow);
@@ -1103,8 +1103,8 @@
         // Init on load: merge server & local history, then render
         window.addEventListener('load', async () => {
             const local = loadLocalHistory();
-            const server = await loadServerHistory();
-            mergeAndSaveHistories(local, server);
+        //  const server = await loadServerHistory();
+            mergeAndSaveHistories(local /*, server*/);
             renderHistory();
         });
     </script>
