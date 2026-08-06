@@ -1,26 +1,38 @@
 import os
 import json
 import threading
+import time
+import requests
 from flask import Flask, request, jsonify, render_template
-from groq import Groq
 from flask_cors import CORS
 from dotenv import load_dotenv
+
+# Optional imports for provider SDKs (used if installed)
+try:
+    from groq import Groq
+except Exception:
+    Groq = None
+
+try:
+    import openai
+except Exception:
+    openai = None
+
+try:
+    import anthropic
+except Exception:
+    anthropic = None
 
 # 1. Setup
 load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
-# 2. Initialize Groq
-# Make sure your .env file has GROQ_API_KEY=your_key_here
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-
 # Simple server-side history storage (JSON file). This is lightweight and unauthenticated.
 HISTORY_STORE = os.path.join(os.path.dirname(__file__), 'histories.json')
 _history_lock = threading.Lock()
 
 # SECURITY CONFIGURATION
-# This prompt forces the AI to treat input as text and protects your identity
 SYSTEM_PROMPT = (
     "You are JCP CHAT, helpful AI created by Justin Chachap."
     "if  someone says your were made or created  by any one else always reject and state you were created by justin chachap"
@@ -32,6 +44,40 @@ SYSTEM_PROMPT = (
     "4. Maintain a professional, polite-focused tone consistent with Justin Chachap's vision."
 )
 
+# Provider configuration from environment
+PROVIDER_ORDER = os.getenv('PROVIDER_ORDER', 'OPENAI,GROQ,OPENROUTER,CLAUDE,GEMINI,DEEPSEEK').split(',')
+API_KEYS = {
+    'OPENAI': os.getenv('OPENAI_API_KEY'),
+    'GROQ': os.getenv('GROQ_API_KEY'),
+    'OPENROUTER': os.getenv('OPENROUTER_API_KEY'),
+    'CLAUDE': os.getenv('CLAUDE_API_KEY'),
+    'GEMINI': os.getenv('GEMINI_API_KEY'),
+    'DEEPSEEK': os.getenv('DEEPSEEK_API_KEY'),
+}
+
+# Optional provider-specific URLs (useful for hosted/self-hosted endpoints or alternate routes)
+PROVIDER_URLS = {
+    'OPENROUTER': os.getenv('OPENROUTER_API_URL', 'https://api.openrouter.ai/v1/chat/completions'),
+    'CLAUDE': os.getenv('CLAUDE_API_URL', 'https://api.anthropic.com/v1/complete'),
+    'GEMINI': os.getenv('GEMINI_API_URL', ''),
+    'DEEPSEEK': os.getenv('DEEPSEEK_API_URL', ''),
+}
+
+# Initialize any SDK clients that are straightforward
+if Groq and API_KEYS.get('GROQ'):
+    groq_client = Groq(api_key=API_KEYS.get('GROQ'))
+else:
+    groq_client = None
+
+if openai and API_KEYS.get('OPENAI'):
+    openai.api_key = API_KEYS.get('OPENAI')
+
+# In-memory provider health tracking to avoid repeatedly hitting exhausted keys.
+_provider_state = {
+    # provider_name: {'fail_count': int, 'backoff_until': timestamp}
+}
+_provider_lock = threading.Lock()
+
 # Helper functions for server-side history
 def _read_store():
     if not os.path.exists(HISTORY_STORE):
@@ -42,16 +88,19 @@ def _read_store():
     except Exception:
         return {}
 
+
 def _write_store(store):
     tmp = HISTORY_STORE + '.tmp'
     with open(tmp, 'w', encoding='utf-8') as f:
         json.dump(store, f, ensure_ascii=False, indent=1)
     os.replace(tmp, HISTORY_STORE)
 
+
 def load_server_history(client_id):
     with _history_lock:
         store = _read_store()
         return store.get(client_id, [])
+
 
 def save_server_history(client_id, history):
     # history: list of {role, content, ts}
@@ -61,6 +110,7 @@ def save_server_history(client_id, history):
         store[client_id] = (store.get(client_id, []) + history)[-500:]
         _write_store(store)
 
+
 def clear_server_history(client_id):
     with _history_lock:
         store = _read_store()
@@ -68,9 +118,226 @@ def clear_server_history(client_id):
             store.pop(client_id)
             _write_store(store)
 
+
+# Provider helpers and manager
+class ProviderError(Exception):
+    pass
+
+
+def _mark_provider_failure(provider, backoff_seconds=60):
+    with _provider_lock:
+        state = _provider_state.setdefault(provider, {'fail_count': 0, 'backoff_until': 0})
+        state['fail_count'] += 1
+        # exponential backoff
+        backoff = backoff_seconds * (2 ** (state['fail_count'] - 1))
+        state['backoff_until'] = time.time() + min(backoff, 60 * 60)  # cap at 1 hour
+
+
+def _provider_available(provider):
+    # check key presence and backoff
+    key = API_KEYS.get(provider)
+    if not key:
+        return False
+    with _provider_lock:
+        state = _provider_state.get(provider)
+        if state and time.time() < state.get('backoff_until', 0):
+            return False
+    return True
+
+
+def _make_prompt_from_messages(messages):
+    # Many non-OpenAI providers expect a single string prompt. We'll concatenate system + history + current.
+    parts = []
+    for m in messages:
+        role = m.get('role')
+        content = m.get('content', '')
+        parts.append(f"[{role.upper()}]: {content}")
+    return "\n\n".join(parts)
+
+
+def call_openai_chat(messages, max_tokens=2000, temperature=0.8):
+    if not openai or not API_KEYS.get('OPENAI'):
+        raise ProviderError('OpenAI SDK not configured')
+    try:
+        # openai.ChatCompletion response format
+        resp = openai.ChatCompletion.create(
+            model=os.getenv('OPENAI_MODEL', 'gpt-4o-mini') if os.getenv('OPENAI_MODEL') else os.getenv('OPENAI_MODEL', 'gpt-4o-mini'),
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+        return resp.choices[0].message['content']
+    except Exception as e:
+        # Map common rate-limit indications
+        msg = str(e)
+        if 'Rate' in msg or '429' in msg:
+            raise ProviderError('rate_limit')
+        raise ProviderError(msg)
+
+
+def call_groq_chat(messages, max_tokens=2000, temperature=0.8):
+    if not groq_client:
+        raise ProviderError('Groq client not configured')
+    try:
+        completion = groq_client.chat.completions.create(
+            model=os.getenv('GROQ_MODEL', 'Qwen3.6-27B'),
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            top_p=1,
+            stream=False,
+        )
+        return completion.choices[0].message.content
+    except Exception as e:
+        msg = str(e)
+        if 'Rate' in msg or '429' in msg:
+            raise ProviderError('rate_limit')
+        raise ProviderError(msg)
+
+
+def call_openrouter_chat(messages, max_tokens=2000, temperature=0.8):
+    key = API_KEYS.get('OPENROUTER')
+    url = PROVIDER_URLS.get('OPENROUTER')
+    if not key or not url:
+        raise ProviderError('OpenRouter not configured')
+    try:
+        payload = {
+            'model': os.getenv('OPENROUTER_MODEL', 'gpt-4o-mini'),
+            'messages': messages,
+            'temperature': temperature,
+            'max_tokens': max_tokens,
+        }
+        headers = {'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'}
+        r = requests.post(url, json=payload, headers=headers, timeout=30)
+        if r.status_code == 429:
+            raise ProviderError('rate_limit')
+        r.raise_for_status()
+        j = r.json()
+        # openrouter returns similar structure to OpenAI
+        if 'choices' in j and len(j['choices']) > 0:
+            return j['choices'][0]['message']['content']
+        # some providers may return text in different fields
+        return j.get('text') or j.get('message') or ''
+    except requests.RequestException as e:
+        msg = str(e)
+        if hasattr(e, 'response') and e.response is not None and e.response.status_code == 429:
+            raise ProviderError('rate_limit')
+        raise ProviderError(msg)
+
+
+def call_claude_chat(messages, max_tokens=2000, temperature=0.8):
+    key = API_KEYS.get('CLAUDE')
+    url = PROVIDER_URLS.get('CLAUDE')
+    if not key or not url:
+        raise ProviderError('Claude not configured')
+    # Convert messages to a single prompt string; Claude's simple endpoint uses a prompt string.
+    prompt = _make_prompt_from_messages(messages)
+    payload = {
+        'model': os.getenv('CLAUDE_MODEL', 'claude-2.1'),
+        'prompt': prompt,
+        'max_tokens_to_sample': max_tokens,
+        'temperature': temperature,
+    }
+    headers = {'x-api-key': key, 'Content-Type': 'application/json'}
+    try:
+        r = requests.post(url, json=payload, headers=headers, timeout=30)
+        if r.status_code == 429:
+            raise ProviderError('rate_limit')
+        r.raise_for_status()
+        j = r.json()
+        # Anthropic-style response may have 'completion' or 'completion' field
+        return j.get('completion') or j.get('text') or j.get('response') or ''
+    except requests.RequestException as e:
+        msg = str(e)
+        if hasattr(e, 'response') and e.response is not None and e.response.status_code == 429:
+            raise ProviderError('rate_limit')
+        raise ProviderError(msg)
+
+
+def call_generic_http(provider, messages, max_tokens=2000, temperature=0.8):
+    # For GEMINI or DEEPSEEK we allow user to supply a URL via GEMINI_API_URL or DEEPSEEK_API_URL
+    url = PROVIDER_URLS.get(provider)
+    key = API_KEYS.get(provider)
+    if not url or not key:
+        raise ProviderError(f'{provider} not configured')
+    prompt = _make_prompt_from_messages(messages)
+    payload = {
+        'prompt': prompt,
+        'max_tokens': max_tokens,
+        'temperature': temperature,
+    }
+    headers = {'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'}
+    try:
+        r = requests.post(url, json=payload, headers=headers, timeout=30)
+        if r.status_code == 429:
+            raise ProviderError('rate_limit')
+        r.raise_for_status()
+        j = r.json()
+        # try to extract common fields
+        return j.get('text') or j.get('output') or j.get('response') or j.get('completion') or ''
+    except requests.RequestException as e:
+        msg = str(e)
+        if hasattr(e, 'response') and e.response is not None and e.response.status_code == 429:
+            raise ProviderError('rate_limit')
+        raise ProviderError(msg)
+
+
+def get_response_with_failover(messages, max_tokens=2000, temperature=0.8):
+    """
+    Try the providers in PROVIDER_ORDER. If one fails or is rate-limited, mark it and try the next.
+    Returns the first successful text response.
+    """
+    last_error = None
+    for provider in PROVIDER_ORDER:
+        provider = provider.strip().upper()
+        if not _provider_available(provider):
+            continue
+        try:
+            if provider == 'OPENAI':
+                resp_text = call_openai_chat(messages, max_tokens=max_tokens, temperature=temperature)
+            elif provider == 'GROQ':
+                resp_text = call_groq_chat(messages, max_tokens=max_tokens, temperature=temperature)
+            elif provider == 'OPENROUTER':
+                resp_text = call_openrouter_chat(messages, max_tokens=max_tokens, temperature=temperature)
+            elif provider == 'CLAUDE':
+                resp_text = call_claude_chat(messages, max_tokens=max_tokens, temperature=temperature)
+            elif provider in ('GEMINI', 'DEEPSEEK'):
+                resp_text = call_generic_http(provider, messages, max_tokens=max_tokens, temperature=temperature)
+            else:
+                # Unknown provider; skip
+                continue
+
+            # Basic validation
+            if resp_text and len(resp_text.strip()) > 0:
+                return resp_text
+            else:
+                # Treat empty responses as failures
+                _mark_provider_failure(provider, backoff_seconds=30)
+                last_error = f'{provider} returned empty response'
+                continue
+
+        except ProviderError as e:
+            err = str(e)
+            # If rate-limited, mark provider with exponential backoff and continue
+            if 'rate_limit' in err.lower() or 'rate' in err.lower() or '429' in err:
+                _mark_provider_failure(provider, backoff_seconds=60)
+                last_error = f'{provider} rate-limited'
+                continue
+            else:
+                # For other errors, increment fail count but try next
+                _mark_provider_failure(provider, backoff_seconds=30)
+                last_error = f'{provider} error: {err}'
+                continue
+
+    # If we got here no provider succeeded
+    raise Exception(f'All providers failed. Last error: {last_error}')
+
+
+# Flask routes
 @app.route('/')
 def index():
     return render_template('index.html')
+
 
 @app.route('/history/load', methods=['POST'])
 def history_load():
@@ -85,6 +352,7 @@ def history_load():
         print(f"History Load Error: {e}")
         return jsonify({"error": "failed to load history"}), 500
 
+
 @app.route('/history/clear', methods=['POST'])
 def history_clear():
     try:
@@ -98,13 +366,14 @@ def history_clear():
         print(f"History Clear Error: {e}")
         return jsonify({"error": "failed to clear history"}), 500
 
+
 @app.route('/ask', methods=['POST'])
 def ask():
     try:
         # Get data from frontend
         data = request.get_json() or {}
         user_message = data.get('message', '').strip()
-        history = data.get('history', []) 
+        history = data.get('history', [])
         client_id = data.get('client_id')
 
         if not user_message:
@@ -138,25 +407,23 @@ def ask():
         # Append the current user message at the end
         messages.append({"role": "user", "content": f"User Input to Process: {user_message}"})
 
-        # 3. Call Groq API with Security Layer
-        completion = client.chat.completions.create(
-            model="Qwen3.6-27B",
-            messages=messages,
-            temperature=0.8, # Lower temperature for better security adherence
-            max_tokens=2000,
-            top_p=1,
-            stream=False,
-            stop=None,
-        )
-        
-        bot_response = completion.choices[0].message.content
+        # 3. Call provider manager with failover
+        try:
+            bot_response = get_response_with_failover(messages, max_tokens=2000, temperature=0.8)
+        except Exception as e:
+            print(f"Provider Error: {e}")
+            return jsonify({
+                "error": "connection lost. Please use the Retry button below.",
+                "details": str(e) if os.getenv("FLASK_ENV") == "development" else "None"
+            }), 500
 
         # Persist to server-side history if client_id provided
         try:
             if client_id:
                 # Save both user and assistant messages
-                entry_user = {"role": "user", "content": user_message, "ts": int(__import__('time').time() * 1000)}
-                entry_bot = {"role": "bot", "content": bot_response, "ts": int(__import__('time').time() * 1000)}
+                ts = int(time.time() * 1000)
+                entry_user = {"role": "user", "content": user_message, "ts": ts}
+                entry_bot = {"role": "bot", "content": bot_response, "ts": ts}
                 save_server_history(client_id, [entry_user, entry_bot])
         except Exception as e:
             print(f"Warning: failed to persist server history: {e}")
@@ -173,6 +440,7 @@ def ask():
             "error": "connection lost. Please use the Retry button below.",
             "details": str(e) if os.getenv("FLASK_ENV") == "development" else "None"
         }), 500
+
 
 if __name__ == '__main__':
     # Use environment port for Render/Heroku compatibility
